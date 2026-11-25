@@ -10,7 +10,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="AutoDiag" />
 
-  <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -48,25 +47,11 @@
       padding-bottom: max(5rem, var(--sab));
       -webkit-tap-highlight-color: transparent;
     }
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0b0f17;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #263247;
-      border-radius: 3px;
-    }
-    .code-font {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
-    .tab-active {
-      background-color: #f59e0b;
-      color: #0b0f17;
-      font-weight: 700;
-    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0f17; }
+    ::-webkit-scrollbar-thumb { background: #263247; border-radius: 3px; }
+    .code-font { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .tab-active { background-color: #f59e0b; color: #0b0f17; font-weight: 700; }
   </style>
 </head>
 <body class="min-h-screen antialiased selection:bg-amber-500 selection:text-slate-950">
@@ -106,7 +91,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <button id="btn-veh-aygo" onclick="selectVehicle('aygo')" class="vehicle-card text-left p-3.5 rounded-xl border-2 border-amber-500 bg-slate-900/90 transition shadow-md">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">09/2022 • Benzina</span>
+            <span id="card-km-aygo" class="text-[11px] font-bold uppercase tracking-wider text-amber-400">09/2022 • 25.000 km</span>
             <span class="code-font text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">1KR-FE</span>
           </div>
           <h2 class="font-bold text-white text-base mt-1">Toyota Aygo X 1.0 MT</h2>
@@ -115,7 +100,7 @@
 
         <button id="btn-veh-punto" onclick="selectVehicle('punto')" class="vehicle-card text-left p-3.5 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-700 transition">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">07/2016 • 207.000 km</span>
+            <span id="card-km-punto" class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">07/2016 • 207.000 km</span>
             <span class="code-font text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">169A4000</span>
           </div>
           <h2 class="font-bold text-white text-base mt-1">Fiat Punto 1.2 Street</h2>
@@ -182,7 +167,31 @@
 
   </main>
 
-  <!-- MODAL GUIDA SALVATAGGIO SU HOME (iOS / ANDROID) -->
+  <!-- MODAL AGGIORNA CHILOMETRAGGIO -->
+  <div id="kmModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 id="kmModalTitle" class="font-bold text-white text-base">Aggiorna Chilometraggio</h3>
+        <button onclick="closeKmModal()" class="text-slate-400 hover:text-white p-1">✕</button>
+      </div>
+      <form onsubmit="saveNewKm(event)" class="space-y-3">
+        <div>
+          <label for="newKmInput" class="block text-xs text-slate-400 mb-1">Inserisci i chilometri attuali del contachilometri:</label>
+          <input id="newKmInput" type="number" min="0" max="1500000" required class="w-full bg-slate-950 border border-slate-700 focus:border-amber-500 rounded-xl px-3.5 py-2.5 text-base font-bold text-white code-font outline-none" />
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeKmModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition">
+            Annulla
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+            Salva km
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL GUIDA SALVATAGGIO SU HOME -->
   <div id="installModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -193,7 +202,7 @@
         <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
           <p class="font-bold text-amber-400 mb-1">Su iPhone / iPad (iOS Safari):</p>
           <ol class="list-decimal list-inside space-y-1">
-            <li>Assicurati di aver aperto il link <code class="text-cyan-300">https://</code> in <strong>Safari</strong> (non in browser interni).</li>
+            <li>Assicurati di aver aperto il link <code class="text-cyan-300">https://</code> in <strong>Safari</strong>.</li>
             <li>Tocca l'icona <strong>Condividi</strong> (quadrato con freccia verso l'alto).</li>
             <li>Scorri in basso e seleziona <strong>Aggiungi alla schermata Home</strong>.</li>
             <li>Conferma toccando <strong>Aggiungi</strong> in alto a destra.</li>
@@ -213,46 +222,90 @@
     </div>
   </div>
 
-  <!-- SCRIPT LOGICA APPLICAZIONE & DATABASE -->
   <script>
     // =========================================================================
-    // 1. DATABASE TECNICO COMPLETO
+    // GESTIONE CHILOMETRAGGIO DINAMICO SALVATO IN LOCALE
+    // =========================================================================
+    const DEFAULT_KM = {
+      aygo: 25000,
+      punto: 207000
+    };
+
+    let vehicleKm = JSON.parse(localStorage.getItem('autodiag_km') || 'null') || { ...DEFAULT_KM };
+
+    function formatKm(num) {
+      return Number(num).toLocaleString('it-IT') + ' km';
+    }
+
+    function updateVehicleCardsKm() {
+      const aygoEl = document.getElementById('card-km-aygo');
+      const puntoEl = document.getElementById('card-km-punto');
+      if (aygoEl) aygoEl.textContent = `09/2022 • ${formatKm(vehicleKm.aygo)}`;
+      if (puntoEl) puntoEl.textContent = `07/2016 • ${formatKm(vehicleKm.punto)}`;
+    }
+
+    function openKmModal() {
+      if (currentVehicle === 'obd') return;
+      const title = currentVehicle === 'aygo' ? 'Toyota Aygo X 1.0 (2022)' : 'Fiat Punto 1.2 Street (2016)';
+      document.getElementById('kmModalTitle').textContent = `Km Attuali — ${title}`;
+      document.getElementById('newKmInput').value = vehicleKm[currentVehicle];
+      document.getElementById('kmModal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('newKmInput').focus(), 100);
+    }
+
+    function closeKmModal() {
+      document.getElementById('kmModal').classList.add('hidden');
+    }
+
+    function saveNewKm(e) {
+      e.preventDefault();
+      const val = parseInt(document.getElementById('newKmInput').value, 10);
+      if (isNaN(val) || val < 0) return;
+      vehicleKm[currentVehicle] = val;
+      localStorage.setItem('autodiag_km', JSON.stringify(vehicleKm));
+      updateVehicleCardsKm();
+      renderSpecsBanner();
+      renderCurrentTab();
+      closeKmModal();
+    }
+
+    // =========================================================================
+    // DATABASE TECNICO
     // =========================================================================
     const VEHICLE_SPECS = {
       aygo: {
         name: "Toyota Aygo X 1.0 VVT-i MT",
-        year: "Immatricolazione: Settembre 2022",
+        regDate: "Immatricolazione: Settembre 2022",
         engine: "1KR-FE • 3 cilindri in linea • 998 cm³ • Catena distribuzione",
         power: "53 kW (72 CV) @ 6.000 giri/min • 93 Nm @ 4.400 giri/min",
         gearbox: "Manuale 5 rapporti + RM (Tipo C554)",
         oil: "0W-20 API SP / ILSAC GF-6A (3,1 L con filtro)",
         battery: "12V 45Ah / 50Ah EFB (Start&Stop)",
-        alert: "Attenzione: Tensione batteria sotto i 12,1V genera falsi errori sul sistema pre-collisione ADAS (PCS) e telecamera parabrezza."
+        getAlert: (km) => `Profilo a ${formatKm(km)}: Verificare stato carica batteria 12V EFB (sotto i 12,1V genera falsi errori sul sistema pre-collisione ADAS PCS) e intervalli tagliando ogni 15.000 km.`
       },
       punto: {
         name: "Fiat Punto 1.2 8V Street (Serie 199)",
-        year: "Immatricolazione: Luglio 2016 • Chilometraggio attuale: 207.000 km",
+        regDate: "Immatricolazione: Luglio 2016",
         engine: "169A4000 (FIRE Evo2) • 4 cilindri • 1.242 cm³ • Cinghia distribuzione",
         power: "51 kW (69 CV) @ 5.500 giri/min • 102 Nm @ 3.000 giri/min",
         gearbox: "Manuale 5 rapporti + RM (Tipo C514.5)",
         oil: "5W-40 ACEA C3 / Fiat 9.55535-S2 (2,8 L con filtro)",
         battery: "12V 50Ah 450A (Senza Start&Stop) / 60Ah EFB (Con S&S)",
-        alert: "Profilo Alto Chilometraggio (207.000 km): Verificare gioco valvole a piattelli, pipetta termostato in plastica, catalizzatore e treccia di massa cambio."
+        getAlert: (km) => `Profilo Alto Chilometraggio (${formatKm(km)}): Verificare gioco valvole a piattelli calibrati, pipetta termostato in plastica, catalizzatore e treccia di massa cambio.`
       },
       obd: {
         name: "Banca Dati Diagnostica Universale OBD2 / EOBD",
-        year: "Standard ISO 15031 / SAE J2012",
+        regDate: "Standard ISO 15031 / SAE J2012",
         engine: "Protocolli CAN-Bus (ISO 15765-4), KWP2000, ISO 9141-2",
         power: "P0xxx (Motore/Cambio) • C0xxx (Chassis/ABS/EPS) • B0xxx (Body) • U0xxx (Rete CAN)",
         gearbox: "Pin diagnostici standard: Pin 4-5 Massa, Pin 6 CAN-H, Pin 14 CAN-L, Pin 16 +12V Batteria",
         oil: "Tensioni riferimento CAN-Bus: CAN-High ~2,6-3,5V | CAN-Low ~1,5-2,4V | Resistenza terminale 60 Ω",
         battery: "Tensione riposo: 12,5-12,7V | Alternatore in carica: 13,8-14,4V",
-        alert: "Prima di sostituire qualsiasi sensore in presenza di codici multipli U0xxx o P0xxx, controllare sempre batteria e masse principali."
+        getAlert: () => "Prima di sostituire qualsiasi sensore in presenza di codici multipli U0xxx o P0xxx, controllare sempre batteria e masse principali."
       }
     };
 
     const FAULTS_DB = [
-      // --- TOYOTA AYGO X 1.0 MT (2022) ---
       {
         vehicle: "aygo",
         code: "C1A50 / PCS OFF",
@@ -321,8 +374,6 @@
         ],
         solution: "1. Pulire il filamento del debimetro MAF esclusivamente con spray pulitore specifico (non toccare meccanicamente).\n2. Controllare tenuta scatola filtro aria e manicotti depressione."
       },
-
-      // --- FIAT PUNTO 1.2 STREET 2016 (207.000 KM) ---
       {
         vehicle: "punto",
         code: "C1002",
@@ -341,10 +392,10 @@
         code: "MECC-H2O",
         system: "Raffreddamento",
         severity: "Alto",
-        title: "Perdita liquido refrigerante (Pipetta termostato o tubo rigido pompe acqua)",
+        title: "Perdita liquido refrigerante (Pipetta termostato o tubo rigido pompa acqua)",
         symptoms: "Livello vaschetta espansione in calo costante, odore di antigelo caldo e tracce rossastre sul cambio o sotto i collettori di scarico.",
         causes: [
-          "Rottura del raccordo in plastica della valvola termostatica (a 207.000 km la plastica si cristallizza e cede improvvisamente).",
+          "Rottura del raccordo in plastica della valvola termostatica (ad alto chilometraggio la plastica si cristallizza e cede improvvisamente).",
           "Corrosione del tubo rigido metallico acqua innestato nella pompa acqua lato scarico o perdita dall'O-ring."
         ],
         solution: "1. Sostituire immediatamente la valvola termostatica con versione modificata dotata di pipetta in alluminio.\n2. Ispezionare e sostituire il tubo rigido acqua e il relativo O-ring.\n3. Spurgare l'impianto tramite le due valvoline di sfiato (radiatore e tubo riscaldamento abitacolo) utilizzando liquido Paraflu UP rosso."
@@ -359,7 +410,7 @@
         causes: [
           "Cavi candela in silicone screpolati che scaricano a massa sulla testata (molto frequente su motore FIRE).",
           "Bobina di accensione unica con uscite ossidate.",
-          "Gioco valvole fuori tolleranza (a 207.000 km le valvole di scarico tendono a puntarsi riducendo il gioco)."
+          "Gioco valvole fuori tolleranza (oltre 200.000 km le valvole di scarico tendono a puntarsi riducendo il gioco)."
         ],
         solution: "1. Sostituire in blocco candele (NGK ZKR7A-10) e cavi alta tensione.\n2. Controllare resistenza avvolgimenti bobina.\n3. Misurare con spessimetro il gioco valvole a freddo (Aspirazione: 0,30 ± 0,05 mm | Scarico: 0,40 ± 0,05 mm) e sostituire i piattelli calibrati se necessario."
       },
@@ -403,8 +454,6 @@
         ],
         solution: "1. Smontare scatola filtro aria, pulire la farfalla con spray pulitore corpi farfallati.\n2. Pulire delicatamente il sensore MAP (1 vite Torx sul collettore) e controllare l'integrità del tubicino recupero vapori olio.\n3. Eseguire reset parametri autoadattativi e apprendimento farfalla con diagnosi."
       },
-
-      // --- BANCA DATI UNIVERSALE OBD2 ---
       {
         vehicle: "obd",
         code: "P0335",
@@ -471,13 +520,13 @@
         { id: "aygo-6", interval: "150.000 km (poi ogni 75k)", type: "Straordinaria", task: "Sostituzione liquido refrigerante Toyota Super Long Life Coolant (Rosa)" }
       ],
       punto: [
-        { id: "punto-1", interval: "207.000 km • Urgente", type: "Straordinaria", task: "Ispezione/sostituzione kit distribuzione (cinghia, tenditore, pompa acqua) se fatti oltre 5 anni o 80.000 km fa" },
-        { id: "punto-2", interval: "207.000 km • Urgente", type: "Straordinaria", task: "Controllo preventivo valvola termostatica (pipetta acqua) e tubo rigido metallico pompa acqua" },
-        { id: "punto-3", interval: "207.000 km • Urgente", type: "Straordinaria", task: "Verifica e regolazione gioco valvole a piattelli calibrati (Asp. 0,30 mm / Sca. 0,40 mm)" },
+        { id: "punto-1", interval: "Controllo Prioritario", type: "Straordinaria", task: "Ispezione/sostituzione kit distribuzione (cinghia, tenditore, pompa acqua) se fatti oltre 5 anni o 80.000 km fa" },
+        { id: "punto-2", interval: "Controllo Prioritario", type: "Straordinaria", task: "Controllo preventivo valvola termostatica (pipetta acqua) e tubo rigido metallico pompa acqua" },
+        { id: "punto-3", interval: "Controllo Prioritario", type: "Straordinaria", task: "Verifica e regolazione gioco valvole a piattelli calibrati (Asp. 0,30 mm / Sca. 0,40 mm)" },
         { id: "punto-4", interval: "Ogni 15.000 km / 1 Anno", type: "Ordinaria", task: "Cambio olio 5W-40 ACEA C3 (2,8 L) + filtro olio + pulizia tubo recupero vapori olio" },
         { id: "punto-5", interval: "Ogni 30.000 km / 2 Anni", type: "Ordinaria", task: "Sostituzione candele (NGK ZKR7A-10), filtro aria, filtro abitacolo e liquido freni DOT 4" },
         { id: "punto-6", interval: "Ogni 80.000 km", type: "Straordinaria", task: "Sostituzione olio cambio manuale C514 (1,65 L Tutela Car Technyx 75W-85 GL-4+)" },
-        { id: "punto-7", interval: "207.000 km • Controllo", type: "Straordinaria", task: "Controllo giochi bracci oscillanti anteriori, biellette barra stabilizzatrice e boccole ponte posteriore" }
+        { id: "punto-7", interval: "Ispezione Telaio", type: "Straordinaria", task: "Controllo giochi bracci oscillanti anteriori, biellette barra stabilizzatrice e boccole ponte posteriore" }
       ],
       obd: [
         { id: "obd-1", interval: "Prima di ogni diagnosi", type: "Procedura", task: "Verifica tensione batteria a riposo (> 12,4V) e tensione alternatore (13,8V - 14,4V)" },
@@ -541,7 +590,7 @@
     };
 
     // =========================================================================
-    // 2. STATO APPLICAZIONE & PERSISTENZA LOCALSTORAGE
+    // STATO APPLICAZIONE
     // =========================================================================
     let currentVehicle = 'aygo';
     let currentTab = 'faults';
@@ -583,11 +632,23 @@
     function renderSpecsBanner() {
       const s = VEHICLE_SPECS[currentVehicle];
       const banner = document.getElementById('vehicle-specs-banner');
+      const hasKm = currentVehicle === 'aygo' || currentVehicle === 'punto';
+      const kmVal = hasKm ? vehicleKm[currentVehicle] : null;
+
       banner.innerHTML = `
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-2.5 mb-2.5">
           <div>
             <h3 class="font-bold text-white text-sm sm:text-base">${s.name}</h3>
-            <p class="text-xs text-amber-400 font-medium">${s.year}</p>
+            <div class="flex flex-wrap items-center gap-2 mt-0.5">
+              <p class="text-xs text-slate-400 font-medium">${s.regDate}</p>
+              ${hasKm ? `
+                <span class="text-slate-600">•</span>
+                <span class="code-font text-xs font-bold text-amber-400">${formatKm(kmVal)}</span>
+                <button onclick="openKmModal()" class="px-2 py-0.5 rounded bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 border border-amber-500/40 text-[11px] font-bold transition">
+                  ✎ Aggiorna km
+                </button>
+              ` : ''}
+            </div>
           </div>
           <span class="code-font text-xs bg-slate-800 text-cyan-300 px-2.5 py-1 rounded-lg border border-slate-700 self-start">
             ${s.engine}
@@ -613,7 +674,7 @@
         </div>
         <div class="mt-2.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-2">
           <span class="font-bold">⚠️</span>
-          <span>${s.alert}</span>
+          <span>${s.getAlert(kmVal)}</span>
         </div>
       `;
     }
@@ -634,7 +695,6 @@
       else if (currentTab === 'opensource') renderOpenSource(container);
     }
 
-    // --- TAB 1: DIFETTI & SOLUZIONI ---
     function renderFaults(container, q) {
       let items = FAULTS_DB.filter(f => f.vehicle === currentVehicle);
       if (q) {
@@ -695,7 +755,6 @@
       }).join('');
     }
 
-    // --- TAB 2: MANUTENZIONE & CHECKLIST ---
     function toggleCheck(id) {
       completedChecks[id] = !completedChecks[id];
       localStorage.setItem('autodiag_checks', JSON.stringify(completedChecks));
@@ -740,7 +799,6 @@
       `;
     }
 
-    // --- TAB 3: COPPIE DI SERRAGGIO & FLUIDI ---
     function renderTorque(container, q) {
       let rows = TORQUE_DB[currentVehicle] || [];
       if (q) {
@@ -765,7 +823,6 @@
       `;
     }
 
-    // --- TAB 4: ELETTRAUTO & FUSIBILI ---
     function renderElectrical(container, q) {
       let items = ELECTRICAL_DB[currentVehicle] || [];
       if (q) {
@@ -790,22 +847,36 @@
       `;
     }
 
-    // --- TAB 5: REGISTRO INTERVENTI OFFICINA ---
+    function onLogVehicleChange() {
+      const sel = document.getElementById('logVeh').value;
+      const kmInput = document.getElementById('logKm');
+      if (sel.includes('Aygo')) kmInput.value = vehicleKm.aygo;
+      else if (sel.includes('Punto')) kmInput.value = vehicleKm.punto;
+      else kmInput.value = '';
+    }
+
     function addLogEntry(e) {
       e.preventDefault();
       const veh = document.getElementById('logVeh').value;
-      const km = document.getElementById('logKm').value;
+      const km = parseInt(document.getElementById('logKm').value, 10);
       const date = document.getElementById('logDate').value;
       const desc = document.getElementById('logDesc').value.trim();
       if (!desc) return;
 
-      workshopLogs.unshift({
-        id: Date.now(),
-        veh,
-        km,
-        date,
-        desc
-      });
+      // Aggiorna automaticamente anche i km dell'auto se maggiori
+      if (veh.includes('Aygo') && km > vehicleKm.aygo) {
+        vehicleKm.aygo = km;
+        localStorage.setItem('autodiag_km', JSON.stringify(vehicleKm));
+        updateVehicleCardsKm();
+        renderSpecsBanner();
+      } else if (veh.includes('Punto') && km > vehicleKm.punto) {
+        vehicleKm.punto = km;
+        localStorage.setItem('autodiag_km', JSON.stringify(vehicleKm));
+        updateVehicleCardsKm();
+        renderSpecsBanner();
+      }
+
+      workshopLogs.unshift({ id: Date.now(), veh, km, date, desc });
       localStorage.setItem('autodiag_logs', JSON.stringify(workshopLogs));
       renderCurrentTab();
     }
@@ -817,7 +888,7 @@
     }
 
     function exportLogsJSON() {
-      const blob = new Blob([JSON.stringify(workshopLogs, null, 2)], { type: 'application/json' });
+      const blob = new Blob([JSON.stringify({ vehicleKm, workshopLogs }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -828,12 +899,14 @@
 
     function renderLogbook(container) {
       const today = new Date().toISOString().split('T')[0];
+      const defaultSelectedKm = currentVehicle === 'punto' ? vehicleKm.punto : vehicleKm.aygo;
+
       container.innerHTML = `
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
           <div class="flex items-center justify-between">
             <div>
               <h4 class="font-bold text-white text-sm">Registro Lavori &amp; Tagliandi Officina</h4>
-              <p class="text-xs text-slate-400">Archivio locale sul dispositivo con esportazione JSON</p>
+              <p class="text-xs text-slate-400">Inserendo un chilometraggio maggiore si aggiorna in automatico anche la scheda veicolo</p>
             </div>
             <button onclick="exportLogsJSON()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-cyan-400 font-semibold">
               Esporta JSON
@@ -841,12 +914,12 @@
           </div>
 
           <form onsubmit="addLogEntry(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-            <select id="logVeh" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
-              <option value="Toyota Aygo X 1.0 (2022)">Toyota Aygo X 1.0 (2022)</option>
-              <option value="Fiat Punto 1.2 Street (2016)">Fiat Punto 1.2 Street (2016)</option>
+            <select id="logVeh" onchange="onLogVehicleChange()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+              <option value="Toyota Aygo X 1.0 (2022)" ${currentVehicle === 'aygo' ? 'selected' : ''}>Toyota Aygo X 1.0 (2022)</option>
+              <option value="Fiat Punto 1.2 Street (2016)" ${currentVehicle === 'punto' ? 'selected' : ''}>Fiat Punto 1.2 Street (2016)</option>
               <option value="Altro Veicolo">Altro Veicolo</option>
             </select>
-            <input id="logKm" type="number" placeholder="Chilometri (es. 207150)" required class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+            <input id="logKm" type="number" value="${defaultSelectedKm}" placeholder="Chilometri" required class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
             <input id="logDate" type="date" value="${today}" required class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
             <input id="logDesc" type="text" placeholder="Descrizione intervento, ricambi sostituiti, codici cancellati..." required class="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
             <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg px-4 py-2 text-xs transition">
@@ -862,7 +935,7 @@
                   <div>
                     <div class="flex flex-wrap items-center gap-2 mb-1">
                       <span class="font-bold text-amber-400">${l.veh}</span>
-                      <span class="code-font text-slate-400">${l.km} km</span>
+                      <span class="code-font text-slate-400">${Number(l.km).toLocaleString('it-IT')} km</span>
                       <span class="text-slate-500">• ${l.date}</span>
                     </div>
                     <p class="text-slate-200">${l.desc}</p>
@@ -876,7 +949,6 @@
       `;
     }
 
-    // --- TAB 6: OPEN-SOURCE & LICENZA ---
     function downloadSourceCode() {
       const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
       const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
@@ -911,15 +983,11 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
       `;
     }
 
-    // --- MODAL ---
-    function openInstallModal() {
-      document.getElementById('installModal').classList.remove('hidden');
-    }
-    function closeInstallModal() {
-      document.getElementById('installModal').classList.add('hidden');
-    }
+    function openInstallModal() { document.getElementById('installModal').classList.remove('hidden'); }
+    function closeInstallModal() { document.getElementById('installModal').classList.add('hidden'); }
 
     // INIZIALIZZAZIONE
+    updateVehicleCardsKm();
     renderSpecsBanner();
     renderCurrentTab();
   </script>
