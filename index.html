@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>AutoDiag OpenGarage — Diagnostica & Officina Open-Source</title>
+  <meta name="description" content="Applicazione web open-source per meccanici ed elettrauti. Schede tecniche, codici OBD2, coppie di serraggio e manutenzione per Toyota Aygo X 1.0 MT (2022) e Fiat Punto 1.2 Street (2016)." />
+  <meta name="theme-color" content="#0b0f17" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AutoDiag" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            garage: {
+              bg: '#0b0f17',
+              card: '#131a26',
+              elevated: '#1b2434',
+              border: '#263247',
+              accent: '#f59e0b',
+              accentHover: '#d97706',
+              cyan: '#06b6d4',
+              danger: '#ef4444',
+              success: '#10b981'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top);
+      --sab: env(safe-area-inset-bottom);
+    }
+    body {
+      background-color: #0b0f17;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding-top: max(0.5rem, var(--sat));
+      padding-bottom: max(5rem, var(--sab));
+      -webkit-tap-highlight-color: transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #263247;
+      border-radius: 3px;
+    }
+    .code-font {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    .tab-active {
+      background-color: #f59e0b;
+      color: #0b0f17;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- HEADER FISSO -->
+  <header class="sticky top-0 z-40 bg-[#0b0f17]/95 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-5xl mx-auto flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center text-slate-950 font-black text-lg shadow-lg shadow-amber-500/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white">AutoDiag <span class="text-amber-400">OpenGarage</span></h1>
+            <span class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">MIT Open-Source</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Database Diagnostica Meccanica &amp; Elettrauto</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="openInstallModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-amber-400 flex items-center gap-1.5 transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>
+          <span>Salva su Home</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENITORE PRINCIPALE -->
+  <main class="max-w-5xl mx-auto px-4 pt-4 space-y-5">
+
+    <!-- SELETTORE VEICOLO -->
+    <section aria-label="Seleziona Veicolo">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <button id="btn-veh-aygo" onclick="selectVehicle('aygo')" class="vehicle-card text-left p-3.5 rounded-xl border-2 border-amber-500 bg-slate-900/90 transition shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-amber-400">09/2022 • Benzina</span>
+            <span class="code-font text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">1KR-FE</span>
+          </div>
+          <h2 class="font-bold text-white text-base mt-1">Toyota Aygo X 1.0 MT</h2>
+          <p class="text-xs text-slate-400 mt-0.5">72 CV (53 kW) • Cambio Manuale C554</p>
+        </button>
+
+        <button id="btn-veh-punto" onclick="selectVehicle('punto')" class="vehicle-card text-left p-3.5 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-700 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">07/2016 • 207.000 km</span>
+            <span class="code-font text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">169A4000</span>
+          </div>
+          <h2 class="font-bold text-white text-base mt-1">Fiat Punto 1.2 Street</h2>
+          <p class="text-xs text-slate-400 mt-0.5">69 CV (51 kW) • 8V FIRE • Dualdrive</p>
+        </button>
+
+        <button id="btn-veh-obd" onclick="selectVehicle('obd')" class="vehicle-card text-left p-3.5 rounded-xl border border-slate-800 bg-slate-900/50 hover:border-slate-700 transition">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Universale • EOBD</span>
+            <span class="code-font text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300">P / C / B / U</span>
+          </div>
+          <h2 class="font-bold text-white text-base mt-1">Banca Dati OBD2 &amp; CAN</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Codici guasto generici &amp; rete CAN-Bus</p>
+        </button>
+      </div>
+    </section>
+
+    <!-- SCHEDA TECNICA SINTETICA DEL VEICOLO SELEZIONATO -->
+    <section id="vehicle-specs-banner" class="bg-slate-900/90 border border-slate-800 rounded-xl p-4">
+      <!-- Popolato dinamicamente via JS -->
+    </section>
+
+    <!-- BARRA DI RICERCA E FILTRI -->
+    <section class="space-y-3">
+      <div class="relative">
+        <input
+          type="text"
+          id="searchInput"
+          oninput="renderCurrentTab()"
+          placeholder="Cerca sintomo, codice OBD2 (es. P0420, C1002), fusibile, coppia serraggio..."
+          class="w-full bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-xl pl-10 pr-10 py-3 text-sm text-white placeholder-slate-400 outline-none transition"
+        />
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-400 absolute left-3 top-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <button onclick="clearSearch()" id="clearSearchBtn" class="hidden absolute right-3 top-3 text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded">Cancella</button>
+      </div>
+
+      <!-- NAVIGAZIONE TAB -->
+      <div class="flex overflow-x-auto gap-1.5 pb-1 no-scrollbar">
+        <button onclick="selectTab('faults')" id="tab-faults" class="tab-btn tab-active px-3.5 py-2 rounded-lg text-xs whitespace-nowrap transition">
+          Difetti &amp; Soluzioni
+        </button>
+        <button onclick="selectTab('maintenance')" id="tab-maintenance" class="tab-btn bg-slate-900 text-slate-300 border border-slate-800 px-3.5 py-2 rounded-lg text-xs whitespace-nowrap transition">
+          Manutenzione &amp; Checklist
+        </button>
+        <button onclick="selectTab('torque')" id="tab-torque" class="tab-btn bg-slate-900 text-slate-300 border border-slate-800 px-3.5 py-2 rounded-lg text-xs whitespace-nowrap transition">
+          Coppie Serraggio &amp; Fluidi
+        </button>
+        <button onclick="selectTab('electrical')" id="tab-electrical" class="tab-btn bg-slate-900 text-slate-300 border border-slate-800 px-3.5 py-2 rounded-lg text-xs whitespace-nowrap transition">
+          Elettrauto &amp; Fusibili
+        </button>
+        <button onclick="selectTab('logbook')" id="tab-logbook" class="tab-btn bg-slate-900 text-slate-300 border border-slate-800 px-3.5 py-2 rounded-lg text-xs whitespace-nowrap transition">
+          Registro Officina
+        </button>
+        <button onclick="selectTab('opensource')" id="tab-opensource" class="tab-btn bg-slate-900 text-emerald-400 border border-slate-800 px-3.5 py-2 rounded-lg text-xs whitespace-nowrap transition">
+          Open-Source &amp; Codice
+        </button>
+      </div>
+    </section>
+
+    <!-- AREA CONTENUTO DINAMICO -->
+    <section id="main-content" class="space-y-3 pb-8">
+      <!-- Contenuto generato dinamicamente -->
+    </section>
+
+  </main>
+
+  <!-- MODAL GUIDA SALVATAGGIO SU HOME (iOS / ANDROID) -->
+  <div id="installModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-white text-base">Installa App nella Schermata Home</h3>
+        <button onclick="closeInstallModal()" class="text-slate-400 hover:text-white p-1">✕</button>
+      </div>
+      <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <p class="font-bold text-amber-400 mb-1">Su iPhone / iPad (iOS Safari):</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>Assicurati di aver aperto il link <code class="text-cyan-300">https://</code> in <strong>Safari</strong> (non in browser interni).</li>
+            <li>Tocca l'icona <strong>Condividi</strong> (quadrato con freccia verso l'alto).</li>
+            <li>Scorri in basso e seleziona <strong>Aggiungi alla schermata Home</strong>.</li>
+            <li>Conferma toccando <strong>Aggiungi</strong> in alto a destra.</li>
+          </ol>
+        </div>
+        <div class="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+          <p class="font-bold text-emerald-400 mb-1">Su Android (Google Chrome):</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>Tocca il menu con i <strong>tre puntini (⋮)</strong> in alto a destra.</li>
+            <li>Seleziona <strong>Aggiungi a schermata Home</strong> o <strong>Installa app</strong>.</li>
+          </ol>
+        </div>
+      </div>
+      <button onclick="closeInstallModal()" class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+        Ho capito
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPT LOGICA APPLICAZIONE & DATABASE -->
+  <script>
+    // =========================================================================
+    // 1. DATABASE TECNICO COMPLETO
+    // =========================================================================
+    const VEHICLE_SPECS = {
+      aygo: {
+        name: "Toyota Aygo X 1.0 VVT-i MT",
+        year: "Immatricolazione: Settembre 2022",
+        engine: "1KR-FE • 3 cilindri in linea • 998 cm³ • Catena distribuzione",
+        power: "53 kW (72 CV) @ 6.000 giri/min • 93 Nm @ 4.400 giri/min",
+        gearbox: "Manuale 5 rapporti + RM (Tipo C554)",
+        oil: "0W-20 API SP / ILSAC GF-6A (3,1 L con filtro)",
+        battery: "12V 45Ah / 50Ah EFB (Start&Stop)",
+        alert: "Attenzione: Tensione batteria sotto i 12,1V genera falsi errori sul sistema pre-collisione ADAS (PCS) e telecamera parabrezza."
+      },
+      punto: {
+        name: "Fiat Punto 1.2 8V Street (Serie 199)",
+        year: "Immatricolazione: Luglio 2016 • Chilometraggio attuale: 207.000 km",
+        engine: "169A4000 (FIRE Evo2) • 4 cilindri • 1.242 cm³ • Cinghia distribuzione",
+        power: "51 kW (69 CV) @ 5.500 giri/min • 102 Nm @ 3.000 giri/min",
+        gearbox: "Manuale 5 rapporti + RM (Tipo C514.5)",
+        oil: "5W-40 ACEA C3 / Fiat 9.55535-S2 (2,8 L con filtro)",
+        battery: "12V 50Ah 450A (Senza Start&Stop) / 60Ah EFB (Con S&S)",
+        alert: "Profilo Alto Chilometraggio (207.000 km): Verificare gioco valvole a piattelli, pipetta termostato in plastica, catalizzatore e treccia di massa cambio."
+      },
+      obd: {
+        name: "Banca Dati Diagnostica Universale OBD2 / EOBD",
+        year: "Standard ISO 15031 / SAE J2012",
+        engine: "Protocolli CAN-Bus (ISO 15765-4), KWP2000, ISO 9141-2",
+        power: "P0xxx (Motore/Cambio) • C0xxx (Chassis/ABS/EPS) • B0xxx (Body) • U0xxx (Rete CAN)",
+        gearbox: "Pin diagnostici standard: Pin 4-5 Massa, Pin 6 CAN-H, Pin 14 CAN-L, Pin 16 +12V Batteria",
+        oil: "Tensioni riferimento CAN-Bus: CAN-High ~2,6-3,5V | CAN-Low ~1,5-2,4V | Resistenza terminale 60 Ω",
+        battery: "Tensione riposo: 12,5-12,7V | Alternatore in carica: 13,8-14,4V",
+        alert: "Prima di sostituire qualsiasi sensore in presenza di codici multipli U0xxx o P0xxx, controllare sempre batteria e masse principali."
+      }
+    };
+
+    const FAULTS_DB = [
+      // --- TOYOTA AYGO X 1.0 MT (2022) ---
+      {
+        vehicle: "aygo",
+        code: "C1A50 / PCS OFF",
+        system: "ADAS / Sicurezza",
+        severity: "Medio",
+        title: "Spia Sistema Pre-Collisione (PCS) e Avviso Corsia non disponibili",
+        symptoms: "Messaggio sul display multifunzione 'Sistema PCS non disponibile' o disattivazione temporanea cruise control adattivo.",
+        causes: [
+          "Condensa, sporco o pellicola interna sul parabrezza davanti alla telecamera monoculare superiore.",
+          "Calo di tensione batteria 12V sotto 12,1V dopo soste prolungate.",
+          "Disallineamento telecamera dopo sostituzione parabrezza."
+        ],
+        solution: "1. Pulire accuratamente l'area del parabrezza davanti al sensore e verificare assenza di umidità interna.\n2. Controllare tensione batteria e ricaricarla.\n3. Se persistente, eseguire calibrazione statica/dinamica telecamera tramite diagnosi Toyota Techstream / OBD2 bidirezionale."
+      },
+      {
+        vehicle: "aygo",
+        code: "MECC-C554",
+        system: "Trasmissione",
+        severity: "Basso",
+        title: "Impuntamento nell'innesto della Retromarcia o 1ª Marcia",
+        symptoms: "Difficoltà ad inserire la retromarcia a veicolo fermo o leggero grattamento.",
+        causes: [
+          "La retromarcia sul cambio manuale Toyota C554 non è sincronizzata.",
+          "Tappetino conducente spostato in avanti che limita la corsa completa del pedale frizione.",
+          "Registrazione cavo frizione o olio cambio degradato."
+        ],
+        solution: "1. Verificare che il tappetino sia agganciato e non ostacoli il finecorsa del pedale frizione.\n2. Premere a fondo la frizione, attendere 2 secondi prima di innestare la RM (oppure innestare prima la 2ª o 3ª marcia per fermare l'albero primario).\n3. Sostituire olio cambio con 1,7 L di 75W LV GL-4."
+      },
+      {
+        vehicle: "aygo",
+        code: "C2121 - C2123",
+        system: "TPMS / Ruote",
+        severity: "Basso",
+        title: "Spia pressione pneumatici lampeggiante poi fissa dopo cambio gomme",
+        symptoms: "La spia TPMS lampeggia per 60 secondi all'avviamento e poi rimane fissa nonostante la pressione sia corretta (2,3 bar ant / 2,2 bar post).",
+        causes: [
+          "Mancata inizializzazione del sistema TPMS dopo rotazione/cambio pneumatici.",
+          "Sensore valvola TPMS scarico o danneggiato durante lo stallonamento."
+        ],
+        solution: "1. Gonfiare tutti e 4 gli pneumatici a freddo alla pressione nominale.\n2. Accendere il quadro (ON), navigare nel menu impostazioni quadro strumenti > Impostazioni Veicolo > TPMS > 'Imposta pressione'.\n3. Tenere premuto OK finché la spia lampeggia 3 volte, quindi guidare per 10-15 minuti."
+      },
+      {
+        vehicle: "aygo",
+        code: "P0301 / P0302 / P0303",
+        system: "Accensione / Motore",
+        severity: "Alto",
+        title: "Mancate accensioni su un cilindro (motore 3 cilindri 1KR-FE)",
+        symptoms: "Vibrazioni marcate al minimo, perdita di potenza in accelerazione e spia motore lampeggiante.",
+        causes: [
+          "Bobina di accensione COP (Coil-On-Plug) difettosa (molto sensibili all'umidità dopo lavaggio motore).",
+          "Candele all'iridio usurate (intervallo 60.000 km).",
+          "Iniettore benzina parzialmente ostruito."
+        ],
+        solution: "1. Invertire la bobina del cilindro incriminato con un altro cilindro e verificare se il codice errore si sposta.\n2. Sostituire le candele con modello originale Denso IXEH20TT o NGK DILKAR6T8.\n3. Controllare integrità gommini paracqua delle bobine."
+      },
+      {
+        vehicle: "aygo",
+        code: "P0171",
+        system: "Alimentazione / Aspirazione",
+        severity: "Medio",
+        title: "Miscela troppo magra (Bancata 1)",
+        symptoms: "Minimo irregolare, esitazione in ripresa e spia MIL accesa.",
+        causes: [
+          "Sensore debimetro MAF sporco o connettore non completamente agganciato dopo sostituzione filtro aria.",
+          "Aspirazione aria parassita dal tubo recupero vapori olio o guarnizione collettore aspirazione."
+        ],
+        solution: "1. Pulire il filamento del debimetro MAF esclusivamente con spray pulitore specifico (non toccare meccanicamente).\n2. Controllare tenuta scatola filtro aria e manicotti depressione."
+      },
+
+      // --- FIAT PUNTO 1.2 STREET 2016 (207.000 KM) ---
+      {
+        vehicle: "punto",
+        code: "C1002",
+        system: "Servosterzo Dualdrive",
+        severity: "Alto",
+        title: "Indurimento improvviso dello sterzo e spia volante rossa accesa",
+        symptoms: "Il servosterzo elettrico si disattiva in marcia o in manovra (specialmente con funzione CITY attiva) e torna a funzionare spegnendo e riaccendendo il quadro.",
+        causes: [
+          "Usura piste potenziometro / sensore di coppia e posizione angolo sterzo sul piantone (difetto tipico oltre 150.000 km).",
+          "Batteria debole o alternatore che non eroga almeno 13,8V (il Dualdrive assorbe fino a 65A)."
+        ],
+        solution: "1. Testare batteria e alternatore sotto carico (fari + lunotto + sterzata da fermo).\n2. Leggere errore in centralina EPS: se presente C1002, sostituire il sensore di coppia piantone (o piantone revisionato) ed eseguire obbligatoriamente la calibrazione punto zero tramite diagnosi (Multiecuscan / Examiner)."
+      },
+      {
+        vehicle: "punto",
+        code: "MECC-H2O",
+        system: "Raffreddamento",
+        severity: "Alto",
+        title: "Perdita liquido refrigerante (Pipetta termostato o tubo rigido pompe acqua)",
+        symptoms: "Livello vaschetta espansione in calo costante, odore di antigelo caldo e tracce rossastre sul cambio o sotto i collettori di scarico.",
+        causes: [
+          "Rottura del raccordo in plastica della valvola termostatica (a 207.000 km la plastica si cristallizza e cede improvvisamente).",
+          "Corrosione del tubo rigido metallico acqua innestato nella pompa acqua lato scarico o perdita dall'O-ring."
+        ],
+        solution: "1. Sostituire immediatamente la valvola termostatica con versione modificata dotata di pipetta in alluminio.\n2. Ispezionare e sostituire il tubo rigido acqua e il relativo O-ring.\n3. Spurgare l'impianto tramite le due valvoline di sfiato (radiatore e tubo riscaldamento abitacolo) utilizzando liquido Paraflu UP rosso."
+      },
+      {
+        vehicle: "punto",
+        code: "P0300 / P0301-P0304",
+        system: "Accensione / Valvole",
+        severity: "Alto",
+        title: "Motore che va a 3 cilindri, seghettamenti o minimo irregolare a freddo",
+        symptoms: "Strappi in ripresa dai bassi regimi, spia motore lampeggiante e calo di prestazioni.",
+        causes: [
+          "Cavi candela in silicone screpolati che scaricano a massa sulla testata (molto frequente su motore FIRE).",
+          "Bobina di accensione unica con uscite ossidate.",
+          "Gioco valvole fuori tolleranza (a 207.000 km le valvole di scarico tendono a puntarsi riducendo il gioco)."
+        ],
+        solution: "1. Sostituire in blocco candele (NGK ZKR7A-10) e cavi alta tensione.\n2. Controllare resistenza avvolgimenti bobina.\n3. Misurare con spessimetro il gioco valvole a freddo (Aspirazione: 0,30 ± 0,05 mm | Scarico: 0,40 ± 0,05 mm) e sostituire i piattelli calibrati se necessario."
+      },
+      {
+        vehicle: "punto",
+        code: "P0420",
+        system: "Scarico / Emissioni",
+        severity: "Medio",
+        title: "Efficienza catalizzatore sotto la soglia (Bancata 1)",
+        symptoms: "Spia avaria motore (MIL) accesa fissa senza evidenti cali di prestazioni.",
+        causes: [
+          "Esaurimento chimico del catalizzatore integrato nei collettori dopo 200.000 km.",
+          "Sonda lambda post-catalizzatore lenta o contaminata da consumo d'olio.",
+          "Micro-fessurazione sul collettore di scarico / flessibile marmitta."
+        ],
+        solution: "1. Verificare con diagnosi grafica l'oscillazione della sonda lambda a valle: se copia esattamente la sonda a monte (0,1V - 0,9V), il catalizzatore è esaurito.\n2. Controllare eventuali sfiati sul tubo flessibile di scarico prima di sostituire il catalizzatore."
+      },
+      {
+        vehicle: "punto",
+        code: "ELET-MASSA",
+        system: "Impianto Elettrico",
+        severity: "Medio",
+        title: "Avviamento lento, lancette impazzite o errori multipli casuali",
+        symptoms: "Il motorino d'avviamento gira lento anche con batteria nuova, reset orologio o spie airbag/ABS casuali.",
+        causes: [
+          "Treccia di massa principale tra polo negativo batteria, scocca e campana del cambio ossidata o sfilacciata.",
+          "Infiltrazione d'acqua nei connettori del Body Computer o scatola fusibili vano motore (scoli parabrezza otturati)."
+        ],
+        solution: "1. Misurare la caduta di tensione tra polo negativo batteria e blocco motore durante l'avviamento (deve essere < 0,2V).\n2. Sostituire o aggiungere un cavo di massa supplementare da 25 mm² tra batteria e cambio.\n3. Pulire gli scarichi acqua sotto i tergicristalli (becchi d'anatra)."
+      },
+      {
+        vehicle: "punto",
+        code: "P0105 / P0505",
+        system: "Aspirazione",
+        severity: "Basso",
+        title: "Minimo altalenante o spegnimento in rilascio frizione",
+        symptoms: "Il motore tende a spegnersi arrivando agli stop o oscilla tra 600 e 1.200 giri/min.",
+        causes: [
+          "Corpo farfallato motorizzato incrostato dai vapori olio del tubo blow-by.",
+          "Sensore pressione assoluta MAP sul collettore aspirazione imbrattato."
+        ],
+        solution: "1. Smontare scatola filtro aria, pulire la farfalla con spray pulitore corpi farfallati.\n2. Pulire delicatamente il sensore MAP (1 vite Torx sul collettore) e controllare l'integrità del tubicino recupero vapori olio.\n3. Eseguire reset parametri autoadattativi e apprendimento farfalla con diagnosi."
+      },
+
+      // --- BANCA DATI UNIVERSALE OBD2 ---
+      {
+        vehicle: "obd",
+        code: "P0335",
+        system: "Sensori Motore",
+        severity: "Alto",
+        title: "Malfunzionamento circuito sensore posizione albero motore (CKP)",
+        symptoms: "Il motore gira ma non si avvia (soprattutto a caldo), oppure si spegne improvvisamente in marcia.",
+        causes: [
+          "Sensore giri induttivo/Hall interrotto termicamente.",
+          "Traferro errato o limatura metallica sulla punta magnetica.",
+          "Cablaggio danneggiato vicino alla puleggia albero motore."
+        ],
+        solution: "Misurare resistenza sensore (se induttivo, tipicamente 500-900 Ω) e verificare segnale onda quadra/sinusoidale all'oscilloscopio durante l'avviamento."
+      },
+      {
+        vehicle: "obd",
+        code: "P0340",
+        system: "Fasatura / Sensori",
+        severity: "Medio",
+        title: "Errore sensore posizione albero a camme (CMP) / Fase",
+        symptoms: "Avviamento lungo, spia motore accesa, possibile perdita di fasatura VVT.",
+        causes: [
+          "Sensore fase guasto.",
+          "Allungamento catena distribuzione (Aygo X) o cinghia distribuzione fuori fase di 1 dente (Punto 1.2 dopo sostituzione)."
+        ],
+        solution: "Controllare alimentazione 5V/12V al sensore, verificare con oscilloscopio la sincronia tra segnale CKP (albero motore) e CMP (camme)."
+      },
+      {
+        vehicle: "obd",
+        code: "U0001 / U0100",
+        system: "Rete CAN-Bus",
+        severity: "Alto",
+        title: "Bus comunicazione CAN High Speed interrotto / Nessuna comunicazione con ECU",
+        symptoms: "Quadro strumenti con spie multiple (ABS, ESP, Servosterzo, Motore), lancette ferme o mancato avviamento.",
+        causes: [
+          "Cortocircuito verso massa o positivo di una delle linee CAN-H / CAN-L.",
+          "Centralina nodo (es. centralina ABS o EPS) in corto interno che abbatte l'intera rete.",
+          "Connettore ossidato o interruzione cablaggio."
+        ],
+        solution: "A batteria scollegata, misurare la resistenza tra Pin 6 (CAN-H) e Pin 14 (CAN-L) della presa OBD2: il valore corretto è 60 Ω (due resistenze da 120 Ω in parallelo). Se 120 Ω c'è un circuito aperto; se 0 Ω c'è un cortocircuito."
+      },
+      {
+        vehicle: "obd",
+        code: "P0500",
+        system: "Velocità / ABS",
+        severity: "Medio",
+        title: "Malfunzionamento sensore velocità veicolo (VSS)",
+        symptoms: "Tachimetro non funzionante, servosterzo indurito e spia ABS/ESP accesa.",
+        causes: [
+          "Sensore ruota ABS anteriore interrotto o ruota fonica magnetica sul cuscinetto danneggiata.",
+          "Cablaggio ruota tranciato."
+        ],
+        solution: "Leggere in diagnosi ABS la velocità delle 4 ruote su strada: la ruota che segna 0 km/h indica il sensore o il cablaggio difettoso."
+      }
+    ];
+
+    const MAINTENANCE_DB = {
+      aygo: [
+        { id: "aygo-1", interval: "Ogni 15.000 km / 1 Anno", type: "Ordinaria", task: "Cambio olio motore (3,1 L 0W-20 API SP) + filtro olio originale Toyota" },
+        { id: "aygo-2", interval: "Ogni 15.000 km / 1 Anno", type: "Ordinaria", task: "Controllo stato carica batteria 12V EFB (fondamentale per ADAS e Start&Stop)" },
+        { id: "aygo-3", interval: "Ogni 30.000 km / 2 Anni", type: "Ordinaria", task: "Sostituzione filtro aria motore, filtro abitacolo antipolline e liquido freni DOT 4" },
+        { id: "aygo-4", interval: "Ogni 60.000 km / 4 Anni", type: "Straordinaria", task: "Sostituzione 3 candele all'iridio (Denso IXEH20TT) e ispezione cinghia servizi" },
+        { id: "aygo-5", interval: "Ogni 75.000 km / 5 Anni", type: "Straordinaria", task: "Sostituzione olio cambio manuale C554 (1,7 L Toyota Gear Oil LV 75W)" },
+        { id: "aygo-6", interval: "150.000 km (poi ogni 75k)", type: "Straordinaria", task: "Sostituzione liquido refrigerante Toyota Super Long Life Coolant (Rosa)" }
+      ],
+      punto: [
+        { id: "punto-1", interval: "207.000 km • Urgente", type: "Straordinaria", task: "Ispezione/sostituzione kit distribuzione (cinghia, tenditore, pompa acqua) se fatti oltre 5 anni o 80.000 km fa" },
+        { id: "punto-2", interval: "207.000 km • Urgente", type: "Straordinaria", task: "Controllo preventivo valvola termostatica (pipetta acqua) e tubo rigido metallico pompa acqua" },
+        { id: "punto-3", interval: "207.000 km • Urgente", type: "Straordinaria", task: "Verifica e regolazione gioco valvole a piattelli calibrati (Asp. 0,30 mm / Sca. 0,40 mm)" },
+        { id: "punto-4", interval: "Ogni 15.000 km / 1 Anno", type: "Ordinaria", task: "Cambio olio 5W-40 ACEA C3 (2,8 L) + filtro olio + pulizia tubo recupero vapori olio" },
+        { id: "punto-5", interval: "Ogni 30.000 km / 2 Anni", type: "Ordinaria", task: "Sostituzione candele (NGK ZKR7A-10), filtro aria, filtro abitacolo e liquido freni DOT 4" },
+        { id: "punto-6", interval: "Ogni 80.000 km", type: "Straordinaria", task: "Sostituzione olio cambio manuale C514 (1,65 L Tutela Car Technyx 75W-85 GL-4+)" },
+        { id: "punto-7", interval: "207.000 km • Controllo", type: "Straordinaria", task: "Controllo giochi bracci oscillanti anteriori, biellette barra stabilizzatrice e boccole ponte posteriore" }
+      ],
+      obd: [
+        { id: "obd-1", interval: "Prima di ogni diagnosi", type: "Procedura", task: "Verifica tensione batteria a riposo (> 12,4V) e tensione alternatore (13,8V - 14,4V)" },
+        { id: "obd-2", interval: "Prima di cancellare DTC", type: "Procedura", task: "Salvataggio Freeze Frame (dati congelati: giri, temperatura acqua, carico motore al momento del guasto)" },
+        { id: "obd-3", interval: "Post-riparazione", type: "Procedura", task: "Reset parametri autoadattativi e verifica completamento Readiness Monitors EOBD" }
+      ]
+    };
+
+    const TORQUE_DB = {
+      aygo: [
+        { part: "Tappo scarico olio coppa motore", spec: "37 Nm (con rondella nuova)" },
+        { part: "Filtro olio avvitabile", spec: "17,5 Nm (o 3/4 di giro dopo contatto guarnizione)" },
+        { part: "Candele di accensione (M12 all'iridio)", spec: "18 Nm (a motore freddo, non ingrassare filetto)" },
+        { part: "Dadi ruota (cerchi in lega / acciaio)", spec: "103 Nm" },
+        { part: "Tappo riempimento / scarico cambio manuale C554", spec: "39 Nm" },
+        { part: "Bulloni pinza freno anteriore (guida)", spec: "34 Nm" },
+        { part: "Staffa supporto pinza freno anteriore", spec: "107 Nm" }
+      ],
+      punto: [
+        { part: "Tappo scarico olio coppa motore (chiave esag. 12 mm)", spec: "20 Nm (filetto conico, non serrare eccessivamente)" },
+        { part: "Candele di accensione (M12 - NGK ZKR7A-10)", spec: "18 - 22 Nm" },
+        { part: "Bulloni ruota (M12x1.25)", spec: "86 Nm (cerchi acciaio) / 98 Nm (cerchi in lega)" },
+        { part: "Dado mozzo ruota anteriore", spec: "70 Nm + angolo 55° (dado nuovo)" },
+        { part: "Dado mozzo tamburo posteriore", spec: "280 Nm (dado nuovo)" },
+        { part: "Puleggia albero motore (ruota fonica)", spec: "25 Nm + 3 viti M8 a 25 Nm" },
+        { part: "Tendicinghia distribuzione", spec: "28 Nm" },
+        { part: "Bulloni coperchio punterie", spec: "10 Nm" }
+      ],
+      obd: [
+        { part: "Candele M14 con guarnizione (testata alluminio)", spec: "25 - 30 Nm" },
+        { part: "Candele M12 con guarnizione (testata alluminio)", spec: "15 - 20 Nm" },
+        { part: "Sonda Lambda (M18x1.5)", spec: "40 - 45 Nm (applicare grasso ramato solo sul filetto)" },
+        { part: "Morsetti batteria", spec: "5 - 7 Nm" }
+      ]
+    };
+
+    const ELECTRICAL_DB = {
+      aygo: [
+        { fuse: "Scatola Vano Motore - EFI MAIN (20A)", desc: "Alimentazione centralina iniezione ECU, bobine accensione e iniettori" },
+        { fuse: "Scatola Vano Motore - IG2 (15A)", desc: "Circuito accensione, avviamento e pompa carburante" },
+        { fuse: "Scatola Vano Motore - ABS NO.1 / NO.2 (30A / 50A)", desc: "Centralina ABS, VSC e controllo stabilità" },
+        { fuse: "Scatola Abitacolo - OBD (7,5A)", desc: "Alimentazione Pin 16 presa diagnostica OBD2" },
+        { fuse: "Scatola Abitacolo - D/L / ECU-IG (10A)", desc: "Telecamera ADAS PCS, quadro strumenti e sensori" },
+        { fuse: "Scatola Abitacolo - CIG / ACC (15A)", desc: "Presa 12V plancia e sistema multimediale Toyota Touch" }
+      ],
+      punto: [
+        { fuse: "Centralina Vano Motore - F11 (15A)", desc: "Sensori motore, elettrovalvole e riscaldatori sonde lambda" },
+        { fuse: "Centralina Vano Motore - F17 (10A)", desc: "Alimentazione centralina controllo motore IAW 5SF/9GF" },
+        { fuse: "Centralina Vano Motore - F21 (15A)", desc: "Pompa carburante nel serbatoio" },
+        { fuse: "Centralina Vano Motore - F22 (20A)", desc: "Bobina accensione e iniettori benzina" },
+        { fuse: "Centralina Vano Motore - F02 (70A Maxifuse)", desc: "Alimentazione principale servosterzo elettrico Dualdrive (EPS)" },
+        { fuse: "Body Computer Abitacolo - F39 (10A)", desc: "Alimentazione Pin 16 presa OBD2, autoradio e plafoniera" },
+        { fuse: "Body Computer Abitacolo - F51 (7,5A)", desc: "Interruttore pedale freno (luce stop) e consenso centralina motore" }
+      ],
+      obd: [
+        { fuse: "OBD2 Pin 4 & Pin 5", desc: "Massa telaio (Pin 4) e Massa segnale (Pin 5)" },
+        { fuse: "OBD2 Pin 6 & Pin 14", desc: "Rete CAN-Bus High Speed: CAN-High (Pin 6) e CAN-Low (Pin 14)" },
+        { fuse: "OBD2 Pin 7", desc: "Linea K (ISO 9141-2 / KWP2000) per centraline legacy" },
+        { fuse: "OBD2 Pin 16", desc: "Alimentazione +12V permanente batteria (protetta da fusibile 7,5A - 10A)" }
+      ]
+    };
+
+    // =========================================================================
+    // 2. STATO APPLICAZIONE & PERSISTENZA LOCALSTORAGE
+    // =========================================================================
+    let currentVehicle = 'aygo';
+    let currentTab = 'faults';
+    let completedChecks = JSON.parse(localStorage.getItem('autodiag_checks') || '{}');
+    let workshopLogs = JSON.parse(localStorage.getItem('autodiag_logs') || '[]');
+
+    function selectVehicle(veh) {
+      currentVehicle = veh;
+      document.querySelectorAll('.vehicle-card').forEach(el => {
+        el.classList.remove('border-2', 'border-amber-500', 'bg-slate-900/90', 'shadow-md');
+        el.classList.add('border', 'border-slate-800', 'bg-slate-900/50');
+      });
+      const activeBtn = document.getElementById('btn-veh-' + veh);
+      activeBtn.classList.remove('border', 'border-slate-800', 'bg-slate-900/50');
+      activeBtn.classList.add('border-2', 'border-amber-500', 'bg-slate-900/90', 'shadow-md');
+
+      renderSpecsBanner();
+      renderCurrentTab();
+    }
+
+    function selectTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('bg-slate-900', 'border', 'border-slate-800');
+      });
+      const activeTab = document.getElementById('tab-' + tab);
+      activeTab.classList.remove('bg-slate-900', 'border', 'border-slate-800');
+      activeTab.classList.add('tab-active');
+
+      renderCurrentTab();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      renderCurrentTab();
+    }
+
+    function renderSpecsBanner() {
+      const s = VEHICLE_SPECS[currentVehicle];
+      const banner = document.getElementById('vehicle-specs-banner');
+      banner.innerHTML = `
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-2.5 mb-2.5">
+          <div>
+            <h3 class="font-bold text-white text-sm sm:text-base">${s.name}</h3>
+            <p class="text-xs text-amber-400 font-medium">${s.year}</p>
+          </div>
+          <span class="code-font text-xs bg-slate-800 text-cyan-300 px-2.5 py-1 rounded-lg border border-slate-700 self-start">
+            ${s.engine}
+          </span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+            <span class="text-slate-400 block text-[11px]">Potenza / Coppia</span>
+            <span class="text-slate-200 font-medium">${s.power}</span>
+          </div>
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+            <span class="text-slate-400 block text-[11px]">Trasmissione / Pin</span>
+            <span class="text-slate-200 font-medium">${s.gearbox}</span>
+          </div>
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+            <span class="text-slate-400 block text-[11px]">Olio / Specifiche</span>
+            <span class="text-slate-200 font-medium">${s.oil}</span>
+          </div>
+          <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+            <span class="text-slate-400 block text-[11px]">Batteria / Riferimento</span>
+            <span class="text-slate-200 font-medium">${s.battery}</span>
+          </div>
+        </div>
+        <div class="mt-2.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-start gap-2">
+          <span class="font-bold">⚠️</span>
+          <span>${s.alert}</span>
+        </div>
+      `;
+    }
+
+    function renderCurrentTab() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (q.length > 0) clearBtn.classList.remove('hidden');
+      else clearBtn.classList.add('hidden');
+
+      const container = document.getElementById('main-content');
+
+      if (currentTab === 'faults') renderFaults(container, q);
+      else if (currentTab === 'maintenance') renderMaintenance(container, q);
+      else if (currentTab === 'torque') renderTorque(container, q);
+      else if (currentTab === 'electrical') renderElectrical(container, q);
+      else if (currentTab === 'logbook') renderLogbook(container);
+      else if (currentTab === 'opensource') renderOpenSource(container);
+    }
+
+    // --- TAB 1: DIFETTI & SOLUZIONI ---
+    function renderFaults(container, q) {
+      let items = FAULTS_DB.filter(f => f.vehicle === currentVehicle);
+      if (q) {
+        items = FAULTS_DB.filter(f =>
+          f.code.toLowerCase().includes(q) ||
+          f.title.toLowerCase().includes(q) ||
+          f.symptoms.toLowerCase().includes(q) ||
+          f.solution.toLowerCase().includes(q) ||
+          f.system.toLowerCase().includes(q)
+        );
+      }
+
+      if (items.length === 0) {
+        container.innerHTML = `<div class="p-6 text-center bg-slate-900 rounded-xl border border-slate-800 text-sm text-slate-400">Nessun guasto trovato per "${q}". Prova con un altro termine o codice OBD2.</div>`;
+        return;
+      }
+
+      container.innerHTML = items.map(f => {
+        const badgeColor = f.severity === 'Alto'
+          ? 'bg-red-500/15 text-red-400 border-red-500/30'
+          : f.severity === 'Medio'
+            ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+            : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+
+        const vehBadge = f.vehicle === 'aygo' ? 'Toyota Aygo X' : f.vehicle === 'punto' ? 'Fiat Punto 1.2' : 'OBD2 Universale';
+
+        return `
+          <article class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3 hover:border-slate-700 transition">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <span class="code-font font-bold text-xs px-2.5 py-1 rounded-md bg-slate-800 text-amber-400 border border-slate-700">${f.code}</span>
+                <span class="text-xs text-slate-400 font-medium">${f.system}</span>
+                ${q ? `<span class="text-[11px] px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">${vehBadge}</span>` : ''}
+              </div>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded border ${badgeColor}">Criticità: ${f.severity}</span>
+            </div>
+
+            <h4 class="font-bold text-white text-sm sm:text-base">${f.title}</h4>
+
+            <div class="text-xs text-slate-300 bg-slate-950/60 p-3 rounded-lg border border-slate-800/80">
+              <strong class="text-slate-200">Sintomi rilevati:</strong> ${f.symptoms}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div class="bg-slate-950/40 p-3 rounded-lg border border-slate-800">
+                <p class="font-bold text-amber-400 mb-1.5">Cause Probabili:</p>
+                <ul class="list-disc list-inside space-y-1 text-slate-300">
+                  ${f.causes.map(c => `<li>${c}</li>`).join('')}
+                </ul>
+              </div>
+              <div class="bg-emerald-950/20 p-3 rounded-lg border border-emerald-800/40">
+                <p class="font-bold text-emerald-400 mb-1.5">Procedura di Riparazione:</p>
+                <p class="text-slate-200 whitespace-pre-line leading-relaxed">${f.solution}</p>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    // --- TAB 2: MANUTENZIONE & CHECKLIST ---
+    function toggleCheck(id) {
+      completedChecks[id] = !completedChecks[id];
+      localStorage.setItem('autodiag_checks', JSON.stringify(completedChecks));
+      renderCurrentTab();
+    }
+
+    function renderMaintenance(container, q) {
+      let list = MAINTENANCE_DB[currentVehicle] || [];
+      if (q) {
+        list = list.filter(m => m.task.toLowerCase().includes(q) || m.interval.toLowerCase().includes(q));
+      }
+
+      container.innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <div>
+              <h4 class="font-bold text-white text-sm">Piano Manutenzione Ordinaria &amp; Straordinaria</h4>
+              <p class="text-xs text-slate-400">Spunta gli interventi già verificati o eseguiti (salvato in locale sul dispositivo)</p>
+            </div>
+          </div>
+          <div class="space-y-2">
+            ${list.map(item => {
+              const checked = !!completedChecks[item.id];
+              const typeBadge = item.type === 'Straordinaria'
+                ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                : 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30';
+              return `
+                <label onclick="toggleCheck('${item.id}')" class="flex items-start gap-3 p-3 rounded-xl border ${checked ? 'bg-emerald-950/20 border-emerald-800/40' : 'bg-slate-950/60 border-slate-800'} cursor-pointer transition">
+                  <input type="checkbox" ${checked ? 'checked' : ''} class="mt-1 w-4 h-4 accent-amber-500 rounded" onclick="event.stopPropagation(); toggleCheck('${item.id}')" />
+                  <div class="flex-1 text-xs">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                      <span class="font-bold text-slate-200">${item.interval}</span>
+                      <span class="px-2 py-0.5 text-[10px] rounded border ${typeBadge}">${item.type}</span>
+                    </div>
+                    <p class="${checked ? 'line-through text-slate-500' : 'text-slate-300'}">${item.task}</p>
+                  </div>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // --- TAB 3: COPPIE DI SERRAGGIO & FLUIDI ---
+    function renderTorque(container, q) {
+      let rows = TORQUE_DB[currentVehicle] || [];
+      if (q) {
+        rows = rows.filter(r => r.part.toLowerCase().includes(q) || r.spec.toLowerCase().includes(q));
+      }
+
+      container.innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div class="p-4 border-b border-slate-800">
+            <h4 class="font-bold text-white text-sm">Tabella Coppie di Serraggio Ufficiali</h4>
+            <p class="text-xs text-slate-400">Valori espressi in Newton-metro (Nm) con filettature pulite e asciutte salvo diversa indicazione</p>
+          </div>
+          <div class="divide-y divide-slate-800">
+            ${rows.map(r => `
+              <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                <span class="font-medium text-slate-200">${r.part}</span>
+                <span class="code-font font-bold text-amber-400 bg-slate-950 px-2.5 py-1 rounded border border-slate-800 self-start sm:self-auto">${r.spec}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // --- TAB 4: ELETTRAUTO & FUSIBILI ---
+    function renderElectrical(container, q) {
+      let items = ELECTRICAL_DB[currentVehicle] || [];
+      if (q) {
+        items = items.filter(e => e.fuse.toLowerCase().includes(q) || e.desc.toLowerCase().includes(q));
+      }
+
+      container.innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div class="p-4 border-b border-slate-800">
+            <h4 class="font-bold text-white text-sm">Mappa Fusibili Principali &amp; Pin-Out Diagnostico</h4>
+            <p class="text-xs text-slate-400">Riferimenti rapidi per ricerca guasti elettrici e assorbimenti anomali</p>
+          </div>
+          <div class="divide-y divide-slate-800">
+            ${items.map(e => `
+              <div class="p-3.5 space-y-1 text-xs">
+                <div class="code-font font-bold text-cyan-400">${e.fuse}</div>
+                <p class="text-slate-300">${e.desc}</p>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // --- TAB 5: REGISTRO INTERVENTI OFFICINA ---
+    function addLogEntry(e) {
+      e.preventDefault();
+      const veh = document.getElementById('logVeh').value;
+      const km = document.getElementById('logKm').value;
+      const date = document.getElementById('logDate').value;
+      const desc = document.getElementById('logDesc').value.trim();
+      if (!desc) return;
+
+      workshopLogs.unshift({
+        id: Date.now(),
+        veh,
+        km,
+        date,
+        desc
+      });
+      localStorage.setItem('autodiag_logs', JSON.stringify(workshopLogs));
+      renderCurrentTab();
+    }
+
+    function deleteLogEntry(id) {
+      workshopLogs = workshopLogs.filter(l => l.id !== id);
+      localStorage.setItem('autodiag_logs', JSON.stringify(workshopLogs));
+      renderCurrentTab();
+    }
+
+    function exportLogsJSON() {
+      const blob = new Blob([JSON.stringify(workshopLogs, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'registro-officina-autodiag.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function renderLogbook(container) {
+      const today = new Date().toISOString().split('T')[0];
+      container.innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="font-bold text-white text-sm">Registro Lavori &amp; Tagliandi Officina</h4>
+              <p class="text-xs text-slate-400">Archivio locale sul dispositivo con esportazione JSON</p>
+            </div>
+            <button onclick="exportLogsJSON()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-cyan-400 font-semibold">
+              Esporta JSON
+            </button>
+          </div>
+
+          <form onsubmit="addLogEntry(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+            <select id="logVeh" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+              <option value="Toyota Aygo X 1.0 (2022)">Toyota Aygo X 1.0 (2022)</option>
+              <option value="Fiat Punto 1.2 Street (2016)">Fiat Punto 1.2 Street (2016)</option>
+              <option value="Altro Veicolo">Altro Veicolo</option>
+            </select>
+            <input id="logKm" type="number" placeholder="Chilometri (es. 207150)" required class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+            <input id="logDate" type="date" value="${today}" required class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+            <input id="logDesc" type="text" placeholder="Descrizione intervento, ricambi sostituiti, codici cancellati..." required class="sm:col-span-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+            <button type="submit" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg px-4 py-2 text-xs transition">
+              + Salva Intervento
+            </button>
+          </form>
+
+          <div class="space-y-2">
+            ${workshopLogs.length === 0
+              ? '<p class="text-xs text-slate-500 text-center py-4">Nessun intervento registrato. Compila il modulo sopra per iniziare.</p>'
+              : workshopLogs.map(l => `
+                <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-start justify-between gap-2 text-xs">
+                  <div>
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                      <span class="font-bold text-amber-400">${l.veh}</span>
+                      <span class="code-font text-slate-400">${l.km} km</span>
+                      <span class="text-slate-500">• ${l.date}</span>
+                    </div>
+                    <p class="text-slate-200">${l.desc}</p>
+                  </div>
+                  <button onclick="deleteLogEntry(${l.id})" class="text-slate-500 hover:text-red-400 px-2 py-1" title="Elimina">✕</button>
+                </div>
+              `).join('')
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    // --- TAB 6: OPEN-SOURCE & LICENZA ---
+    function downloadSourceCode() {
+      const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'index.html';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function renderOpenSource(container) {
+      container.innerHTML = `
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4 text-xs text-slate-300 leading-relaxed">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h4 class="font-bold text-white text-sm">Progetto Open-Source — Licenza MIT</h4>
+              <p class="text-slate-400">Architettura single-file HTML/JS zero-dipendenze pronta per GitHub Pages</p>
+            </div>
+            <button onclick="downloadSourceCode()" class="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold transition">
+              Scarica index.html
+            </button>
+          </div>
+          <p>
+            <strong>AutoDiag OpenGarage</strong> è distribuito sotto licenza open-source <strong>MIT</strong>: puoi modificarlo, aggiungere nuovi modelli di auto o codici OBD2 e pubblicarlo liberamente su GitHub Pages, Netlify o sul server locale della tua officina.
+          </p>
+          <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 code-font text-[11px] text-slate-400 overflow-x-auto">
+MIT License — Copyright (c) 2026 AutoDiag OpenGarage Contributors<br/>
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software.
+          </div>
+        </div>
+      `;
+    }
+
+    // --- MODAL ---
+    function openInstallModal() {
+      document.getElementById('installModal').classList.remove('hidden');
+    }
+    function closeInstallModal() {
+      document.getElementById('installModal').classList.add('hidden');
+    }
+
+    // INIZIALIZZAZIONE
+    renderSpecsBanner();
+    renderCurrentTab();
+  </script>
+</body>
+</html>
